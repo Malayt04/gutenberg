@@ -169,6 +169,7 @@ $navigation-icon-size: 24px;
 		display: flex;
 		flex-direction: column;
 		align-items: normal;
+		isolation: isolate;
 
 		// Hide until hover or focus within.
 		opacity: 0;
