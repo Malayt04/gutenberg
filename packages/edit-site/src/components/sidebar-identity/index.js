@@ -1,10 +1,53 @@
 import { Page } from '@wordpress/admin-ui';
 import { __, _x } from '@wordpress/i18n';
-import { useSelect, useDispatch } from '@wordpress/data';
+// eslint-disable-next-line @wordpress/use-recommended-components
+import { Button, __experimentalVStack as VStack } from '@wordpress/components';
 import { store as coreStore } from '@wordpress/core-data';
+import { useSelect, useDispatch } from '@wordpress/data';
 import { DataForm } from '@wordpress/dataviews';
+import { privateApis as editorPrivateApis } from '@wordpress/editor';
 import { MediaEdit } from '@wordpress/fields';
 import { decodeEntities } from '@wordpress/html-entities';
+import { privateApis as mediaEditorPrivateApis } from '@wordpress/media-editor';
+import { unlock } from '../../lock-unlock';
+
+const { store: mediaEditorStore, MediaEditorModal } = unlock(
+	mediaEditorPrivateApis
+);
+const { usePostFields } = unlock( editorPrivateApis );
+
+function IdentityMediaEdit( props ) {
+	const { openMediaEditorModal } = useDispatch( mediaEditorStore );
+	const value = props.field.getValue( { item: props.data } );
+
+	return (
+		<VStack spacing={ 3 }>
+			<MediaEdit { ...props } />
+			{ !! value && (
+				<Button
+					__next40pxDefaultSize
+					variant="secondary"
+					onClick={ () => {
+						openMediaEditorModal( {
+							id: value,
+							onUpdate: ( { id: newId } ) => {
+								props.onChange(
+									props.field.setValue( {
+										item: props.data,
+										value: newId,
+									} )
+								);
+							},
+						} );
+					} }
+					style={ { justifyContent: 'center' } }
+				>
+					{ __( 'Adjust image' ) }
+				</Button>
+			) }
+		</VStack>
+	);
+}
 
 const fields = [
 	{
@@ -33,7 +76,7 @@ const fields = [
 			"Displays in your site's layout via the Site Logo block."
 		),
 		placeholder: __( 'Choose logo' ),
-		Edit: MediaEdit,
+		Edit: IdentityMediaEdit,
 		setValue: ( { value } ) => ( {
 			site_logo: value ?? 0,
 		} ),
@@ -46,7 +89,7 @@ const fields = [
 			'Shown in browser tabs, bookmarks, and mobile apps. It should be square and at least 512 by 512 pixels.'
 		),
 		placeholder: __( 'Choose icon' ),
-		Edit: MediaEdit,
+		Edit: IdentityMediaEdit,
 		setValue: ( { value } ) => ( {
 			site_icon: value ?? 0,
 		} ),
@@ -68,6 +111,7 @@ export default function SidebarIdentity() {
 		[]
 	);
 	const { editEntityRecord } = useDispatch( coreStore );
+	const attachmentFields = usePostFields( { postType: 'attachment' } );
 
 	const onChange = ( edits ) => {
 		editEntityRecord( 'root', 'site', undefined, edits );
@@ -85,6 +129,7 @@ export default function SidebarIdentity() {
 				form={ form }
 				onChange={ onChange }
 			/>
+			<MediaEditorModal fields={ attachmentFields } />
 		</Page>
 	);
 }
