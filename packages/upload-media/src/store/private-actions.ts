@@ -72,6 +72,7 @@ import type {
 import { ItemStatus, OperationType, Type } from './types';
 import type { cancelItem, executeRetry } from './actions';
 import { clearRetryTimer } from './utils/retry';
+import { analyzeAudioFile } from '../audio-waveform';
 
 const DEFAULT_OUTPUT_QUALITY = 0.82;
 
@@ -92,6 +93,7 @@ type ActionCreators = {
 	removeItem: typeof removeItem;
 	pauseItem: typeof pauseItem;
 	prepareItem: typeof prepareItem;
+	analyzeAudioItem: typeof analyzeAudioItem;
 	processItem: typeof processItem;
 	finishOperation: typeof finishOperation;
 	uploadItem: typeof uploadItem;
@@ -499,6 +501,10 @@ export function processItem( id: QueueItemId ) {
 				} else {
 					dispatch.uploadItem( id );
 				}
+				break;
+
+			case OperationType.AnalyzeAudio:
+				dispatch.analyzeAudioItem( id );
 				break;
 
 			case OperationType.ThumbnailGeneration:
@@ -956,6 +962,13 @@ export function prepareItem( id: QueueItemId ) {
 				OperationType.ThumbnailGeneration,
 				OperationType.Finalize
 			);
+		} else if (
+			file.type.startsWith( 'audio/' ) &&
+			! ( file instanceof StubFile ) &&
+			settings.mediaFinalize &&
+			typeof OfflineAudioContext !== 'undefined'
+		) {
+			operations.push( OperationType.AnalyzeAudio, OperationType.Upload );
 		} else {
 			operations.push( OperationType.Upload );
 		}
@@ -1010,6 +1023,34 @@ export function prepareItem( id: QueueItemId ) {
 		}
 
 		dispatch.finishOperation( id, updates );
+	};
+}
+
+/**
+ * Analyse local audio before upload while the browser still has its bytes.
+ * An unavailable decoder leaves the ordinary upload operation in place.
+ *
+ * @param id Item ID.
+ */
+export function analyzeAudioItem( id: QueueItemId ) {
+	return async ( { select, dispatch }: ThunkArgs ) => {
+		const item = select.getItem( id );
+		if ( ! item ) {
+			return;
+		}
+
+		const audioWaveform = await analyzeAudioFile(
+			item.file,
+			item.abortController?.signal
+		);
+		if ( audioWaveform && select.getSettings().mediaFinalize ) {
+			dispatch< AddOperationsAction >( {
+				type: Type.AddOperations,
+				id,
+				operations: [ OperationType.Finalize ],
+			} );
+		}
+		dispatch.finishOperation( id, { audioWaveform } );
 	};
 }
 
@@ -1965,10 +2006,13 @@ export function finalizeItem( id: QueueItemId ) {
 				// onChange with that URL, which is what the block stores —
 				// and what `wp_calculate_image_srcset()` needs in order to
 				// match a known size and emit srcset on the front end.
-				const updatedAttachment = await mediaFinalize(
-					attachment.id,
-					item.subSizes || []
-				);
+				const updatedAttachment = item.audioWaveform
+					? await mediaFinalize(
+							attachment.id,
+							item.subSizes || [],
+							item.audioWaveform
+						)
+					: await mediaFinalize( attachment.id, item.subSizes || [] );
 				if ( updatedAttachment ) {
 					updates.attachment = updatedAttachment;
 				}

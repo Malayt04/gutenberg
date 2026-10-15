@@ -1,5 +1,9 @@
 # Technical Documentation
 
+## Audio waveform metadata
+
+When the upload queue has a media finalization callback and the browser supports `OfflineAudioContext`, local audio files up to 50 MiB are decoded at an 8 kHz target rate before upload. The upload continues if decoding fails, the codec is unsupported, the browser lacks the API, or the file exceeds the limit. The queue sends `{ peaks, peak_count: 512 }` to `POST /wp/v2/media/{id}/finalize` as `waveform`, where `peaks` is canonical base64 encoding of 512 unsigned 8-bit maximum absolute amplitudes. The endpoint accepts this field only for audio attachments, validates its length and encoding, and saves `waveform` and `waveform_peak_count` in attachment metadata. These keys are available under `media_details` in `wp/v2/media` responses. The Playlist block prefers this metadata for tracks with an attachment ID, falls back to a valid saved track waveform, and uses a flat seekbar if neither exists. Existing attachments are not backfilled by this upload-time step.
+
 ## Browser Compatibility
 
 Client-side media processing requires the following browser capabilities:

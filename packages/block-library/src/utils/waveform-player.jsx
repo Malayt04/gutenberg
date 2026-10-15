@@ -64,6 +64,7 @@ function updatePlayerMetadata(
  *
  * @param {Object}   props                       - Component props.
  * @param {string}   props.src                   - The audio file URL.
+ * @param {number[]} props.waveform              - Precomputed player peaks.
  * @param {string}   props.title                 - The track title.
  * @param {string}   props.artist                - The artist name.
  * @param {string}   props.image                 - The track image URL.
@@ -80,6 +81,7 @@ function updatePlayerMetadata(
  */
 export function WaveformPlayer( {
 	src,
+	waveform,
 	title,
 	artist,
 	image,
@@ -109,7 +111,14 @@ export function WaveformPlayer( {
 
 	// Combined props ref for `initWaveformPlayer`, which is called
 	// asynchronously after this component mounts.
-	const metadataRef = useRef( { src, title, artist, image, imageAlt } );
+	const metadataRef = useRef( {
+		src,
+		title,
+		artist,
+		image,
+		imageAlt,
+		waveform,
+	} );
 	const stylesRef = useRef( {
 		color,
 		gradient,
@@ -118,8 +127,8 @@ export function WaveformPlayer( {
 		textColor,
 	} );
 	useEffect( () => {
-		metadataRef.current = { src, title, artist, image, imageAlt };
-	}, [ src, title, artist, image, imageAlt ] );
+		metadataRef.current = { src, title, artist, image, imageAlt, waveform };
+	}, [ src, title, artist, image, imageAlt, waveform ] );
 
 	useEffect( () => {
 		stylesRef.current = {
@@ -167,6 +176,7 @@ export function WaveformPlayer( {
 				}
 				const player = initWaveformPlayer( element, {
 					src: metadataRef.current.src,
+					waveform: metadataRef.current.waveform || [ 0, 0 ],
 					title: metadataRef.current.title,
 					artist: metadataRef.current.artist,
 					image: metadataRef.current.image,
@@ -176,7 +186,9 @@ export function WaveformPlayer( {
 					backgroundColor: stylesRef.current.backgroundColor,
 					backgroundGradient: stylesRef.current.backgroundGradient,
 					textColor: stylesRef.current.textColor,
-					waveformStyle,
+					waveformStyle: metadataRef.current.waveform
+						? waveformStyle
+						: 'seekbar',
 					labels: {
 						seek: __( 'Seek' ),
 						/* translators: %1$s: current audio time, %2$s: total audio duration. */
@@ -252,6 +264,8 @@ export function WaveformPlayer( {
 					artworkAlt: showPlayButtonArtwork
 						? ''
 						: metadataRef.current.imageAlt,
+					waveform: waveform || [ 0, 0 ],
+					waveformStyle: waveform ? waveformStyle : 'seekbar',
 				}
 			);
 			promise.then( () => {
@@ -266,7 +280,7 @@ export function WaveformPlayer( {
 				}
 			} );
 		}
-	}, [ src, showPlayButtonArtwork ] );
+	}, [ src, waveform, waveformStyle, showPlayButtonArtwork ] );
 
 	return <div ref={ ref } className="wp-block-playlist__waveform-player" />;
 }

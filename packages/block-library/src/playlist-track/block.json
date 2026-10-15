@@ -46,6 +46,10 @@
 			"type": "string",
 			"role": "content"
 		},
+		"waveform": {
+			"type": "string",
+			"role": "content"
+		},
 		"title": {
 			"type": "string",
 			"role": "content"

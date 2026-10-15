@@ -172,6 +172,24 @@ class Gutenberg_REST_Attachments_Controller extends WP_REST_Attachments_Controll
 							'description' => __( 'Unique identifier for the attachment.', 'gutenberg' ),
 							'type'        => 'integer',
 						),
+						'waveform'  => array(
+							'description'          => __( 'The audio waveform measured before upload.', 'gutenberg' ),
+							'type'                 => 'object',
+							'required'             => false,
+							'properties'           => array(
+								'peaks'      => array(
+									'type'      => 'string',
+									'maxLength' => 684,
+									'required'  => true,
+								),
+								'peak_count' => array(
+									'type'     => 'integer',
+									'enum'     => array( 512 ),
+									'required' => true,
+								),
+							),
+							'additionalProperties' => false,
+						),
 						'sub_sizes' => array(
 							'description'       => __( 'Array of sub-size metadata collected from sideload responses.', 'gutenberg' ),
 							'type'              => 'array',
@@ -1550,6 +1568,35 @@ class Gutenberg_REST_Attachments_Controller extends WP_REST_Attachments_Controll
 		$metadata = wp_get_attachment_metadata( $attachment_id );
 		if ( ! is_array( $metadata ) ) {
 			$metadata = array();
+		}
+
+		if ( isset( $request['waveform'] ) ) {
+			$waveform = $request['waveform'];
+			$peaks    = is_array( $waveform ) ? ( $waveform['peaks'] ?? null ) : null;
+			$bytes    = is_string( $peaks ) && 684 === strlen( $peaks ) ? base64_decode( $peaks, true ) : false;
+			if (
+				! is_array( $waveform ) ||
+				2 !== count( $waveform ) ||
+				512 !== ( $waveform['peak_count'] ?? null ) ||
+				false === $bytes ||
+				512 !== strlen( $bytes ) ||
+				base64_encode( $bytes ) !== $peaks
+			) {
+				return new WP_Error(
+					'rest_invalid_audio_waveform',
+					__( 'The audio waveform data is invalid. Upload the file again.', 'gutenberg' ),
+					array( 'status' => 400 )
+				);
+			}
+			if ( 0 !== strpos( (string) get_post_mime_type( $attachment_id ), 'audio/' ) ) {
+				return new WP_Error(
+					'rest_waveform_requires_audio',
+					__( 'Waveform data can only be saved for audio files.', 'gutenberg' ),
+					array( 'status' => 400 )
+				);
+			}
+			$metadata['waveform']            = $peaks;
+			$metadata['waveform_peak_count'] = 512;
 		}
 
 		// Apply all sub-size metadata collected from sideload responses.

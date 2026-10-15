@@ -292,6 +292,73 @@ class Tests_Blocks_Render_Playlist extends WP_UnitTestCase {
 	/**
 	 * @covers ::render_block_core_playlist
 	 */
+	public function test_attachment_waveform_takes_precedence_over_saved_track_waveform() {
+		$attachment_id       = self::factory()->attachment->create_object(
+			DIR_TESTDATA . '/uploads/small-audio.mp3',
+			0,
+			array( 'post_mime_type' => 'audio/mpeg' )
+		);
+		$attachment_waveform = base64_encode( str_repeat( chr( 255 ), 512 ) );
+		$saved_waveform      = base64_encode( str_repeat( chr( 0 ), 512 ) );
+		wp_update_attachment_metadata(
+			$attachment_id,
+			array(
+				'waveform'            => $attachment_waveform,
+				'waveform_peak_count' => 512,
+			)
+		);
+
+		do_blocks(
+			$this->build_playlist_markup(
+				array(),
+				array(
+					array(
+						'id'       => $attachment_id,
+						'src'      => 'https://cdn.example/audio.mp3',
+						'waveform' => $saved_waveform,
+					),
+					array(
+						'id'       => 999999,
+						'src'      => 'https://cdn.example/old.mp3',
+						'waveform' => $saved_waveform,
+					),
+				)
+			)
+		);
+		$state    = wp_interactivity_state( 'core/playlist' );
+		$playlist = reset( $state['playlists'] );
+
+		$this->assertSame( $attachment_waveform, $playlist['tracks']['track-0']['waveform'] );
+		$this->assertSame( $saved_waveform, $playlist['tracks']['track-1']['waveform'] );
+	}
+
+	/**
+	 * @covers ::render_block_core_playlist
+	 * @covers ::render_block_core_playlist_track
+	 */
+	public function test_renders_saved_waveform_for_track_without_attachment_id() {
+		$waveform = base64_encode( str_repeat( chr( 64 ), 512 ) );
+		$output   = do_blocks(
+			$this->build_playlist_markup(
+				array(),
+				array(
+					array(
+						'src'      => 'https://example.com/song.mp3',
+						'waveform' => $waveform,
+					),
+				)
+			)
+		);
+		$state    = wp_interactivity_state( 'core/playlist' );
+		$playlist = reset( $state['playlists'] );
+
+		$this->assertStringContainsString( 'wp-block-playlist-track__button', $output );
+		$this->assertSame( $waveform, $playlist['tracks']['track-0']['waveform'] );
+	}
+
+	/**
+	 * @covers ::render_block_core_playlist
+	 */
 	public function test_track_image_remains_in_interactivity_state_when_tracklist_images_are_disabled() {
 		$markup = $this->build_playlist_markup(
 			array(

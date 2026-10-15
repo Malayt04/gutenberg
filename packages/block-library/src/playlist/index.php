@@ -6,6 +6,22 @@
  */
 
 /**
+ * Check the fixed-size base64 waveform stored on a track or attachment.
+ *
+ * @since 7.2.0
+ *
+ * @param mixed $waveform Encoded waveform value.
+ * @return bool Whether the waveform holds exactly 512 unsigned bytes.
+ */
+function block_core_playlist_is_valid_waveform( $waveform ) {
+	if ( ! is_string( $waveform ) || 684 !== strlen( $waveform ) ) {
+		return false;
+	}
+	$bytes = base64_decode( $waveform, true );
+	return false !== $bytes && 512 === strlen( $bytes ) && base64_encode( $bytes ) === $waveform;
+}
+
+/**
  * Renders the `core/playlist` block on server.
  *
  * @since 7.1.0
@@ -29,7 +45,7 @@ function render_block_core_playlist( $attributes, $content, $block ) {
 			if ( 'core/playlist-track' === $inner_block->name ) {
 				$track_attributes = $inner_block->attributes;
 
-				if ( empty( $track_attributes['id'] ) ) {
+				if ( empty( $track_attributes['id'] ) && empty( $track_attributes['src'] ) ) {
 					continue;
 				}
 
@@ -48,7 +64,19 @@ function render_block_core_playlist( $attributes, $content, $block ) {
 				$image            = is_string( $track_image ) ? $track_image : '';
 				$image_alt        = $track_attributes['imageAlt'] ?? '';
 				$url              = is_string( $track_src ) ? $track_src : '';
-				$aria_label       = $title;
+				$waveform         = $track_attributes['waveform'] ?? null;
+				$attachment_id    = $track_attributes['id'] ?? null;
+				if ( is_int( $attachment_id ) && $attachment_id > 0 && 0 === strpos( (string) get_post_mime_type( $attachment_id ), 'audio/' ) ) {
+					$metadata = wp_get_attachment_metadata( $attachment_id );
+					if (
+						is_array( $metadata ) &&
+						512 === ( $metadata['waveform_peak_count'] ?? null ) &&
+						block_core_playlist_is_valid_waveform( $metadata['waveform'] ?? null )
+					) {
+						$waveform = $metadata['waveform'];
+					}
+				}
+				$aria_label = $title;
 
 				if ( $title && $artist && $album ) {
 					$aria_label = sprintf(
@@ -72,6 +100,9 @@ function render_block_core_playlist( $attributes, $content, $block ) {
 					'imageAlt'  => wp_strip_all_tags( $image_alt ),
 					'ariaLabel' => wp_strip_all_tags( $aria_label ),
 				);
+				if ( block_core_playlist_is_valid_waveform( $waveform ) ) {
+					$tracks_data[ $track_id ]['waveform'] = $waveform;
+				}
 			}
 		}
 	}

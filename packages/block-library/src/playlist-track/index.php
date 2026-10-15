@@ -17,7 +17,7 @@
  * @return string Returns the Playlist Track.
  */
 function render_block_core_playlist_track( $attributes, $content = '', $block = null ) {
-	if ( empty( $attributes['id'] ) ) {
+	if ( empty( $attributes['id'] ) && empty( $attributes['src'] ) ) {
 		return '';
 	}
 

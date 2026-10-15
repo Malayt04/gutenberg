@@ -5,6 +5,7 @@ import {
 	setupPlayButtonArtwork,
 	updateSeekControlLabel,
 } from '../utils/waveform-utils';
+import { decodeWaveform } from '../utils/waveform-data';
 
 /**
  * Store player state for each element.
@@ -99,6 +100,8 @@ function initPlayer( ref, track, shouldAutoPlay, context ) {
 	const existing = playerState.get( ref );
 	const showPlayButtonArtwork = context.showPlayButtonArtwork === true;
 	const playerArtwork = showPlayButtonArtwork ? '' : track.image;
+	const waveform = decodeWaveform( track.waveform );
+	const waveformStyle = waveform ? context.waveformStyle : 'seekbar';
 
 	// If a player already exists, load the new track without recreating.
 	if ( existing?.instance ) {
@@ -114,6 +117,8 @@ function initPlayer( ref, track, shouldAutoPlay, context ) {
 				.loadTrack( track.url, track.title, track.artist, {
 					artwork: playerArtwork,
 					artworkAlt: playerArtwork ? track.imageAlt : '',
+					waveform: waveform || [ 0, 0 ],
+					waveformStyle,
 				} )
 				.then( () => {
 					existing.url = track.url;
@@ -151,6 +156,7 @@ function initPlayer( ref, track, shouldAutoPlay, context ) {
 	// Initialize using the shared core.
 	const player = initWaveformPlayer( ref, {
 		src: track.url,
+		waveform: waveform || [ 0, 0 ],
 		title: track.title,
 		artist: track.artist,
 		image: track.image,
@@ -161,7 +167,7 @@ function initPlayer( ref, track, shouldAutoPlay, context ) {
 		backgroundGradient: ref.dataset.waveformPlayerBackgroundGradient,
 		autoPlay: shouldAutoPlay,
 		labels,
-		waveformStyle: context.waveformStyle,
+		waveformStyle,
 		showPlayButtonArtwork,
 		onEnded: () => {
 			// Advance to next track (autoPlay handles playback).

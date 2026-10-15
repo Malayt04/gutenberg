@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Enhancements
+
+-   Playlist: Read attachment waveform metadata for tracks with an attachment ID, retain track-level waveform fallback, and show a seekbar when no peaks are available.
+
 ### Breaking Changes
 
 -   Raise the minimum required Node.js version to `>=22.13.0`, for stable `require(esm)` support ([#84313](https://github.com/WordPress/gutenberg/pull/84313)).

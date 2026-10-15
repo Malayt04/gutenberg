@@ -57,6 +57,79 @@ class Gutenberg_REST_Attachments_Controller_Test extends WP_Test_REST_Post_Type_
 	}
 
 	/**
+	 * @covers ::finalize_item
+	 */
+	public function test_finalize_stores_audio_waveform_in_media_details() {
+		wp_set_current_user( self::$admin_id );
+		$attachment_id = self::factory()->attachment->create_object(
+			DIR_TESTDATA . '/uploads/small-audio.mp3',
+			0,
+			array( 'post_mime_type' => 'audio/mpeg' )
+		);
+		wp_update_attachment_metadata( $attachment_id, array( 'length' => 10 ) );
+		$peaks = base64_encode( str_repeat( chr( 127 ), 512 ) );
+
+		$request = new WP_REST_Request( 'POST', "/wp/v2/media/$attachment_id/finalize" );
+		$request->set_param(
+			'waveform',
+			array(
+				'peaks'      => $peaks,
+				'peak_count' => 512,
+			)
+		);
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $peaks, $response->get_data()['media_details']['waveform'] );
+		$this->assertSame( 512, $response->get_data()['media_details']['waveform_peak_count'] );
+		$this->assertSame( 10, wp_get_attachment_metadata( $attachment_id )['length'] );
+	}
+
+	/**
+	 * @covers ::finalize_item
+	 */
+	public function test_finalize_rejects_invalid_audio_waveform() {
+		wp_set_current_user( self::$admin_id );
+		$attachment_id = self::factory()->attachment->create_object(
+			DIR_TESTDATA . '/uploads/small-audio.mp3',
+			0,
+			array( 'post_mime_type' => 'audio/mpeg' )
+		);
+		$request       = new WP_REST_Request( 'POST', "/wp/v2/media/$attachment_id/finalize" );
+		$request->set_param(
+			'waveform',
+			array(
+				'peaks'      => 'AAAA',
+				'peak_count' => 512,
+			)
+		);
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertArrayNotHasKey( 'waveform', (array) wp_get_attachment_metadata( $attachment_id ) );
+	}
+
+	/**
+	 * @covers ::finalize_item
+	 */
+	public function test_finalize_rejects_waveform_for_non_audio_attachment() {
+		wp_set_current_user( self::$admin_id );
+		$attachment_id = $this->create_attachment_for_sideload();
+		$request       = new WP_REST_Request( 'POST', "/wp/v2/media/$attachment_id/finalize" );
+		$request->set_param(
+			'waveform',
+			array(
+				'peaks'      => base64_encode( str_repeat( chr( 127 ), 512 ) ),
+				'peak_count' => 512,
+			)
+		);
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertArrayNotHasKey( 'waveform', (array) wp_get_attachment_metadata( $attachment_id ) );
+	}
+
+	/**
 	 * @covers ::register_routes
 	 */
 	public function test_register_routes() {

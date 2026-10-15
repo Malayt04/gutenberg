@@ -2,11 +2,11 @@ import apiFetch from '@wordpress/api-fetch';
 import { transformAttachment } from '@wordpress/media-utils';
 import { receiveFinalizedAttachment } from '../media-upload/finalized-attachments';
 
-export default async function mediaFinalize( id, subSizes = [] ) {
+export default async function mediaFinalize( id, subSizes = [], waveform ) {
 	const response = await apiFetch( {
 		path: `/wp/v2/media/${ id }/finalize`,
 		method: 'POST',
-		data: { sub_sizes: subSizes },
+		data: { sub_sizes: subSizes, ...( waveform ? { waveform } : {} ) },
 	} );
 
 	if ( ! response ) {

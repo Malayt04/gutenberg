@@ -59,6 +59,19 @@ describe( 'mediaFinalize', () => {
 		} );
 	} );
 
+	it( 'sends the audio waveform with finalization', async () => {
+		apiFetch.mockResolvedValue( mockRestAttachment );
+		const waveform = { peaks: 'AAAA', peak_count: 512 };
+
+		await mediaFinalize( 123, [], waveform );
+
+		expect( apiFetch ).toHaveBeenCalledWith( {
+			path: '/wp/v2/media/123/finalize',
+			method: 'POST',
+			data: { sub_sizes: [], waveform },
+		} );
+	} );
+
 	it( 'should return the transformed attachment with the scaled URL so the block can pick up srcset', async () => {
 		apiFetch.mockResolvedValue( mockRestAttachment );
 

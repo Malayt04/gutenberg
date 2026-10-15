@@ -57,6 +57,7 @@ export interface QueueItem {
 	abortController?: AbortController;
 	parentId?: QueueItemId;
 	subSizes?: SubSizeData[];
+	audioWaveform?: import( '../audio-waveform' ).AudioWaveform;
 }
 
 export interface State {
@@ -242,7 +243,8 @@ export interface Settings {
 	// up the post-finalize URL (the scaled file), which is required for `srcset`.
 	mediaFinalize?: (
 		id: number,
-		subSizes: SubSizeData[]
+		subSizes: SubSizeData[],
+		waveform?: import( '../audio-waveform' ).AudioWaveform
 	) => Promise< Partial< Attachment > | void >;
 	// Whether to convert animated GIFs to video (MP4/WebM) during upload.
 	// When enabled, animated GIFs are transcoded to video for smaller file sizes.
@@ -325,6 +327,7 @@ export enum ItemStatus {
 
 export enum OperationType {
 	Prepare = 'PREPARE',
+	AnalyzeAudio = 'ANALYZE_AUDIO',
 	Upload = 'UPLOAD',
 	ResizeCrop = 'RESIZE_CROP',
 	Rotate = 'ROTATE',

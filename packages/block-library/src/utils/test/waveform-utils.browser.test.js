@@ -85,6 +85,15 @@ describe( 'Waveform utilities', () => {
 			expect( container ).toHaveAttribute( 'data-seek-label', 'My Song' );
 		} );
 
+		it( 'passes measured peaks to the player before it initializes', () => {
+			const container = createWaveformContainer( {
+				...basePlayerData,
+				waveform: [ 0, 1 ],
+			} );
+
+			expect( container ).toHaveAttribute( 'data-waveform', '[0,1]' );
+		} );
+
 		it( 'should set the seek value-text template when provided', () => {
 			const container = createWaveformContainer( {
 				...basePlayerData,

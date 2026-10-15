@@ -20,6 +20,7 @@ import {
 	__experimentalToolsPanelItem as ToolsPanelItem,
 } from '@wordpress/components';
 import { useSelect, useDispatch } from '@wordpress/data';
+import { store as coreDataStore } from '@wordpress/core-data';
 import { store as noticesStore } from '@wordpress/notices';
 import { __, _x } from '@wordpress/i18n';
 import { playlist as icon } from '@wordpress/icons';
@@ -28,6 +29,7 @@ import { createBlobURL } from '@wordpress/blob';
 import { Caption } from '../utils/caption';
 import { useToolsPanelDropdownMenuProps } from '../utils/hooks';
 import { WaveformPlayer } from '../utils/waveform-player';
+import { decodeWaveform } from '../utils/waveform-data';
 import { PlaylistContext } from './context';
 import { getTrackAttributes } from './utils';
 
@@ -309,6 +311,27 @@ const PlaylistEdit = ( {
 	const currentTrackData =
 		tracks.find( ( track ) => track.clientId === currentTrackClientId ) ??
 		tracks[ 0 ];
+	const attachment = useSelect(
+		( select ) =>
+			Number.isInteger( currentTrackData?.id )
+				? select( coreDataStore ).getEntityRecord(
+						'postType',
+						'attachment',
+						currentTrackData.id
+					)
+				: undefined,
+		[ currentTrackData?.id ]
+	);
+	const attachmentWaveform =
+		attachment?.media_details?.waveform_peak_count === 512
+			? attachment.media_details.waveform
+			: undefined;
+	const waveform = useMemo(
+		() =>
+			decodeWaveform( attachmentWaveform ) ||
+			decodeWaveform( currentTrackData?.waveform ),
+		[ attachmentWaveform, currentTrackData?.waveform ]
+	);
 
 	// Handle track end - advance to next track or loop to first.
 	const onTrackEnded = useCallback( () => {
@@ -724,6 +747,7 @@ const PlaylistEdit = ( {
 				<Disabled isDisabled={ ! isSelected }>
 					<WaveformPlayer
 						src={ currentTrackData?.src }
+						waveform={ waveform }
 						title={ currentTrackData?.title }
 						artist={ currentTrackData?.artist }
 						image={ currentTrackData?.image }

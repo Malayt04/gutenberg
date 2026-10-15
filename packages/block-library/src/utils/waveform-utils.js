@@ -241,23 +241,25 @@ export function getWaveformColors(
 /**
  * Create a waveform container element with the specified attributes.
  *
- * @param {Object} options                  - The options for the container.
- * @param {string} options.url              - The audio URL.
- * @param {string} options.title            - The track title.
- * @param {string} options.artist           - The track artist.
- * @param {string} options.artwork          - The track image URL.
- * @param {string} options.waveformColor    - The waveform bar color.
- * @param {string} options.progressColor    - The progress indicator color.
- * @param {string} options.waveformGradient - The waveform gradient direction.
- * @param {string} options.buttonColor      - The play button color.
- * @param {string} options.seekLabel        - Accessible label for the seek control.
- * @param {string} options.seekValueText    - Accessible value-text template for the seek control (e.g. '%1$s of %2$s').
- * @param {number} options.height           - The waveform height in pixels.
- * @param {string} options.waveformStyle    - The visualization style (bars, mirror, line, blocks, dots, seekbar).
+ * @param {Object}   options                  - The options for the container.
+ * @param {string}   options.url              - The audio URL.
+ * @param {number[]} options.waveform         - Precomputed waveform values.
+ * @param {string}   options.title            - The track title.
+ * @param {string}   options.artist           - The track artist.
+ * @param {string}   options.artwork          - The track image URL.
+ * @param {string}   options.waveformColor    - The waveform bar color.
+ * @param {string}   options.progressColor    - The progress indicator color.
+ * @param {string}   options.waveformGradient - The waveform gradient direction.
+ * @param {string}   options.buttonColor      - The play button color.
+ * @param {string}   options.seekLabel        - Accessible label for the seek control.
+ * @param {string}   options.seekValueText    - Accessible value-text template for the seek control (e.g. '%1$s of %2$s').
+ * @param {number}   options.height           - The waveform height in pixels.
+ * @param {string}   options.waveformStyle    - The visualization style (bars, mirror, line, blocks, dots, seekbar).
  * @return {Element} The configured container element.
  */
 export function createWaveformContainer( {
 	url,
+	waveform,
 	title,
 	artist,
 	artwork,
@@ -273,6 +275,9 @@ export function createWaveformContainer( {
 	const container = document.createElement( 'div' );
 	container.setAttribute( 'data-waveform-player', '' );
 	container.setAttribute( 'data-url', url );
+	if ( waveform ) {
+		container.setAttribute( 'data-waveform', JSON.stringify( waveform ) );
+	}
 	container.setAttribute( 'data-height', String( height ) );
 	container.setAttribute( 'data-waveform-style', waveformStyle );
 	container.setAttribute(
@@ -503,6 +508,7 @@ export function logPlayError( error ) {
  * @param {Element}  element                       - The container element (must be in DOM).
  * @param {Object}   options                       - Configuration options.
  * @param {string}   options.src                   - The audio file URL.
+ * @param {number[]} options.waveform              - Precomputed waveform values.
  * @param {string}   options.title                 - The track title.
  * @param {string}   options.artist                - The artist name.
  * @param {string}   options.image                 - The track image URL.
@@ -523,6 +529,7 @@ export function initWaveformPlayer(
 	element,
 	{
 		src,
+		waveform,
 		title,
 		artist,
 		image,
@@ -560,6 +567,7 @@ export function initWaveformPlayer(
 	// Create the waveform container.
 	const container = createWaveformContainer( {
 		url: src,
+		waveform,
 		title,
 		artist,
 		artwork: playerArtwork,

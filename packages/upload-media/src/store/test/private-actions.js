@@ -7,6 +7,7 @@ import {
 	getTranscodeImageOperation,
 	finalizeItem,
 	prepareItem,
+	analyzeAudioItem,
 	transcodeGifItem,
 	detectUltraHdr,
 	removeItem,
@@ -25,6 +26,11 @@ import {
 	terminateVideoConversionWorker,
 } from '../utils/video-conversion';
 import { canvasConvertToJpeg, HeicUnsupportedError } from '../../canvas-utils';
+import { analyzeAudioFile } from '../../audio-waveform';
+
+vi.mock( import( '../../audio-waveform' ), () => ( {
+	analyzeAudioFile: vi.fn(),
+} ) );
 
 // Mock @wordpress/blob
 vi.mock( import( '@wordpress/blob' ), () => ( {
@@ -319,6 +325,76 @@ describe( 'private actions', () => {
 			);
 
 			expect( result ).toBeNull();
+		} );
+	} );
+
+	it( 'queues audio analysis before uploading an audio file', async () => {
+		vi.stubGlobal( 'OfflineAudioContext', vi.fn() );
+		const file = new File( [ 'audio' ], 'song.mp3', {
+			type: 'audio/mpeg',
+		} );
+		const dispatch = {
+			finishOperation: vi.fn(),
+		};
+		const actions = [];
+		const thunk = prepareItem( 'audio-id' );
+
+		await thunk( {
+			select: {
+				getItem: () => ( { file, additionalData: {} } ),
+				getSettings: () => ( { mediaFinalize: vi.fn() } ),
+			},
+			dispatch: Object.assign(
+				( action ) => actions.push( action ),
+				dispatch
+			),
+		} );
+
+		expect( actions[ 0 ].operations ).toEqual( [
+			OperationType.AnalyzeAudio,
+			OperationType.Upload,
+		] );
+		vi.unstubAllGlobals();
+	} );
+
+	it( 'finalizes only audio files with measured peaks', async () => {
+		const audioWaveform = { peaks: 'AAAA', peak_count: 512 };
+		analyzeAudioFile.mockResolvedValue( audioWaveform );
+		const actions = [];
+		const dispatch = Object.assign( ( action ) => actions.push( action ), {
+			finishOperation: vi.fn(),
+		} );
+		await analyzeAudioItem( 'audio-id' )( {
+			select: {
+				getItem: () => ( { file: new File( [], 'song.mp3' ) } ),
+				getSettings: () => ( { mediaFinalize: vi.fn() } ),
+			},
+			dispatch,
+		} );
+
+		expect( actions[ 0 ].operations ).toEqual( [ OperationType.Finalize ] );
+		expect( dispatch.finishOperation ).toHaveBeenCalledWith( 'audio-id', {
+			audioWaveform,
+		} );
+	} );
+
+	it( 'continues uploading when audio analysis cannot produce peaks', async () => {
+		analyzeAudioFile.mockResolvedValue( undefined );
+		const actions = [];
+		const dispatch = Object.assign( ( action ) => actions.push( action ), {
+			finishOperation: vi.fn(),
+		} );
+		await analyzeAudioItem( 'audio-id' )( {
+			select: {
+				getItem: () => ( { file: new File( [], 'song.mp3' ) } ),
+				getSettings: () => ( { mediaFinalize: vi.fn() } ),
+			},
+			dispatch,
+		} );
+
+		expect( actions ).toEqual( [] );
+		expect( dispatch.finishOperation ).toHaveBeenCalledWith( 'audio-id', {
+			audioWaveform: undefined,
 		} );
 	} );
 
